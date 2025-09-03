@@ -1,0 +1,8 @@
+image extractor for mpv (hopefully strictly within the confines of mpv extensions (i.e. no hooking the graphics context))
+
+- [ ] graphics
+    - [ ] primitive shader gui library using sdfs
+    - [ ] somehow mouse support?
+    - [ ] generate shaders at runtime with hot reloading
+- [ ] processing
+    - [ ] blob detection and making the selected reagion follow

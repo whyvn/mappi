@@ -1,0 +1,11 @@
+[package]
+name = "mpv"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+mpv-client = "1.1.0"
+tempfile = "3.21.0"
