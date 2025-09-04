@@ -8,8 +8,8 @@ extern "C" fn mpv_open_cplugin(handle: *mut mpv_handle) -> std::os::raw::c_int {
     let client = Handle::from_ptr(handle);
 
     let mut shader = shader::Builder::new().unwrap();
+    shader.refresh().unwrap();
     loop {
-        _ = shader.refresh().unwrap();
         _ = client.set_property(NAME_PROP_SHADER, shader.shader().unwrap());
 
         match client.wait_event(-1.) {

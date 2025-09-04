@@ -1,44 +1,94 @@
 use std::io::Write;
 use tempfile;
 
+macro_rules! stringStrings {
+    ($_t:tt $e:expr) => {$e};
+    ($($s:expr)+) => {
+            format!(concat!($(stringStrings!($s "{}")),+), $($s),+)
+    };
+}
+
+/// NOTE: x,y,w,h r normalised!
 pub struct Builder {
-    pub shader: tempfile::NamedTempFile,
-    pub x: f32,
-    pub y: f32,
+    shader: tempfile::NamedTempFile,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32
 }
 
 impl Builder {
     pub fn new() -> std::io::Result<Self> {
         Ok(Self {
             shader: tempfile::NamedTempFile::new()?,
-            x: 0.,
-            y: 0.
+            x: 0.4,
+            y: 0.4,
+            w: 0.2,
+            h: 0.2,
         })
     }
 
-    pub fn add(&mut self, x: f32, y: f32) {
-        self.x += x;
-        self.y += y;
+    pub fn add(&mut self, offset: (f32, f32)) {
+        self.x += offset.0;
+        self.y += offset.1;
     }
 
     fn build(&self) -> String {
-        String::from(r#"
+        stringStrings!(
+            r#"
+            // thanks Inigo Quilez
             //!HOOK MAIN
             //!BIND HOOKED
+            "#
+
+            format!(
+                "const vec4 REGION = vec4({}, {}, {}, {});",
+                self.x, self.y, self.w, self.h
+            )
+
+            r#"
+            float sharpen(in float a) {
+                return smoothstep(0.01, 0.01+0.001, a);
+            }
 
             float sdBox( in vec2 p, in vec2 b ) {
                 vec2 d = abs(p)-b;
-                return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
+                float dd = length(max(d,0.0)) + min(max(d.x,d.y),0.0);
+                return sharpen(dd);
+            }
+
+            float sdCircle(in vec2 p, in float r) {
+                float d = length(p) - r;
+                return sharpen(d);
             }
 
             vec4 hook() {
+                vec2 cpos = HOOKED_pos;
+                cpos.x *= HOOKED_size.x/HOOKED_size.y;
+
                 vec4 colour = HOOKED_tex(HOOKED_pos);
 
-                float box = sdBox(HOOKED_pos, vec2(0.1));
-                box = smoothstep(0.001, 0.001+0.0001, box);
-                return colour * box;
+                const vec2 pos[4] = vec2[4](
+                    (REGION.xy - REGION.zw),
+                    (REGION.xy + REGION.zw),
+                    (REGION.xy - vec2(REGION.z, -REGION.w)),
+                    (REGION.xy + vec2(REGION.z, -REGION.w))
+                );
+                for(
+                    int i = 0;
+                    i < 4;
+                    i++
+                ) {
+                    float circle = sdCircle(pos[i] - cpos, 0.01);
+                    colour += (1 - circle)*0.5;
+                }
+
+                float box = sdBox(REGION.xy - cpos, REGION.zw);
+                colour += (1 - box)*0.1;
+
+                return colour;
             }
-        "#)
+        "#).to_owned()
     }
 
     pub fn refresh(&mut self) -> std::io::Result<()> {
