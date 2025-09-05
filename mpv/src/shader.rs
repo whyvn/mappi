@@ -9,12 +9,23 @@ macro_rules! stringStrings {
 }
 
 trait Element {
-    // fn position(&self) -> (f32, f32);
     // mayb setsize and stuff here
     // pub fn add(&mut self, offset: (f32, f32)) -> Self;
+    fn position(&self) -> (f32, f32);
+    // TODO: this should be an associated type but i dont want to wrap it in an enum for `elements` soooo yeah were doing htis lol
+    fn size(&self) -> String;
     fn opacity(&self) -> f32 { 1.0 }
 
-    fn sdf(&self) -> String;
+    fn sdff_name(&self) -> &str;
+    fn sdf(&self) -> String {
+        let pos = self.position();
+
+        // TODO: macro this to pass the signature of the sdf function
+        format!(r#"{{
+            float f = {}(vec2({}, {}) - pos, {});
+            colour += (1 - f)*{};
+        }}"#, self.sdff_name(), pos.0, pos.1, self.size(), self.opacity())
+    }
 }
 
 pub struct Builder {
@@ -30,7 +41,7 @@ impl Builder {
         })
     }
 
-    pub fn with_element<T: Element + 'static>(mut self, element: T) -> Self {
+    pub fn with_element<'a, T: Element + 'static>(mut self, element: T) -> Self {
         self.elements.push(Box::new(element));
         self
     }
@@ -162,27 +173,22 @@ impl Circle {
 }
 
 impl Element for Rectangle {
-    fn opacity(&self) -> f32 {
-        0.1
-    }
+    fn position(&self) -> (f32, f32) { (self.x, self.y) }
+    fn size(&self) -> String { format!("vec2({}, {})", self.w, self.h) }
+    fn opacity(&self) -> f32 { 0.1 }
+    fn sdff_name<'a>(&'a self) -> &'a str { "sdBox" }
 
-    fn sdf(&self) -> String {
-        format!(r#"{{
-            float box = sdBox(vec2({}, {}) - pos, vec2({}, {}));
-            colour += (1 - box)*0.1;
-        }}"#, self.x, self.y, self.w, self.h)
-    }
+    // fn sdf(&self) -> String {
+    //     format!(r#"{{
+    //         float box = sdBox(vec2({}, {}) - pos, vec2({}, {}));
+    //         colour += (1 - box)*0.1;
+    //     }}"#, self.x, self.y, self.w, self.h)
+    // }
 }
 
 impl Element for Circle {
-    fn opacity(&self) -> f32 {
-        0.5
-    }
-
-    fn sdf(&self) -> String {
-        format!(r#"{{
-            float circle = sdCircle(vec2({}, {}) - pos, {});
-            colour += (1 - circle)*0.5;
-        }}"#, self.x, self.y, self.r)
-    }
+    fn position(&self) -> (f32, f32) { (self.x, self.y) }
+    fn size(&self) -> String { format!("{}", self.r) }
+    fn opacity(&self) -> f32 { 0.5 }
+    fn sdff_name<'a>(&'a self) -> &'a str { "sdCircle" }
 }
